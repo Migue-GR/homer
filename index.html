@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HOMER ZONE — DO NOT LEAVE</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #ffd521;
+    font-family: "Comic Sans MS", "Comic Sans", system-ui, sans-serif;
+    color: #3a2a00;
+    user-select: none;
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><text y='26' font-size='28'>🍩</text></svg>") 16 16, auto;
+  }
+
+  #enter {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #ffd521;
+    z-index: 9999;
+    text-align: center;
+    padding: 20px;
+  }
+
+  #enter h1 {
+    font-size: clamp(36px, 8vw, 96px);
+    margin: 0 0 20px;
+    text-shadow: 4px 4px 0 #fff, 8px 8px 0 #000;
+  }
+
+  #enter button {
+    font-family: inherit;
+    font-size: 32px;
+    padding: 20px 50px;
+    background: #ff4d4d;
+    color: white;
+    border: 6px solid #000;
+    border-radius: 18px;
+    cursor: pointer;
+    box-shadow: 6px 6px 0 #000;
+    transition: transform 0.1s;
+  }
+
+  #enter button:hover { transform: scale(1.05) rotate(-2deg); }
+  #enter button:active { transform: scale(0.95); }
+
+  #enter p {
+    margin-top: 20px;
+    font-size: 18px;
+    max-width: 600px;
+    opacity: 0.8;
+  }
+
+  #stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .donut {
+    position: absolute;
+    font-size: 80px;
+    pointer-events: none;
+    animation: spin 4s linear infinite;
+    user-select: none;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  #title {
+    position: absolute;
+    top: 6%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(40px, 9vw, 120px);
+    text-shadow: 5px 5px 0 #fff, 10px 10px 0 #000;
+    text-align: center;
+    z-index: 5;
+    animation: wobble 1.2s ease-in-out infinite;
+    white-space: nowrap;
+  }
+
+  @keyframes wobble {
+    0%, 100% { transform: translateX(-50%) rotate(-3deg); }
+    50% { transform: translateX(-50%) rotate(3deg); }
+  }
+
+  #homer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: clamp(120px, 25vw, 320px);
+    z-index: 4;
+    animation: bounce 0.6s ease-in-out infinite;
+    text-shadow: 0 0 30px rgba(0,0,0,0.3);
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -55%) scale(1.08); }
+  }
+
+  #subtitle {
+    position: absolute;
+    bottom: 12%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(20px, 3vw, 36px);
+    text-align: center;
+    z-index: 5;
+    background: rgba(255,255,255,0.85);
+    padding: 14px 28px;
+    border-radius: 14px;
+    border: 4px solid #000;
+    box-shadow: 4px 4px 0 #000;
+    white-space: nowrap;
+  }
+
+  #close-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-family: inherit;
+    font-size: 18px;
+    padding: 12px 24px;
+    background: #fff;
+    color: #d40000;
+    border: 4px solid #d40000;
+    border-radius: 10px;
+    cursor: pointer;
+    z-index: 10;
+    transition: top 0.15s ease, left 0.15s ease, right 0.15s ease, bottom 0.15s ease;
+    font-weight: bold;
+  }
+
+  #counter {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(0,0,0,0.7);
+    color: #ffd521;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 16px;
+    z-index: 10;
+  }
+
+  #toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(200%);
+    background: #ff4d4d;
+    color: white;
+    padding: 14px 26px;
+    border-radius: 12px;
+    border: 4px solid #000;
+    font-size: 22px;
+    z-index: 999;
+    transition: transform 0.3s ease;
+    pointer-events: none;
+    box-shadow: 4px 4px 0 #000;
+  }
+
+  #toast.show {
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<div id="enter">
+  <h1>🍩 ENTER THE HOMER ZONE 🍩</h1>
+  <button id="enterBtn">CLICK TO ENTER</button>
+  <p>Warning: by clicking you agree to never experience silence again.</p>
+</div>
+
+<div id="stage" style="display:none;">
+  <div id="counter">D'oh count: <span id="dohs">0</span></div>
+  <button id="close-btn">✕ Close</button>
+  <div id="title">MMMMM... DONUTS</div>
+  <div id="homer">🍩</div>
+  <div id="subtitle">You can never leave.</div>
+</div>
+
+<div id="toast"></div>
+
+<audio id="audio" src="homer.mp3" loop preload="auto"></audio>
+
+<script>
+  const audio = document.getElementById('audio');
+  const enter = document.getElementById('enter');
+  const stage = document.getElementById('stage');
+  const enterBtn = document.getElementById('enterBtn');
+  const closeBtn = document.getElementById('close-btn');
+  const toast = document.getElementById('toast');
+  const dohsEl = document.getElementById('dohs');
+
+  let dohs = 0;
+  let started = false;
+
+  const messages = [
+    "D'OH! You tried to leave!",
+    "Mmmm... staying...",
+    "Homer is sad now.",
+    "One does not simply close the Homer Zone.",
+    "Why would you do that?",
+    "The donuts will remember this.",
+    "404: Exit not found.",
+    "Stay a while. Stay forever.",
+  ];
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 1800);
+  }
+
+  function randomMessage() {
+    return messages[Math.floor(Math.random() * messages.length)];
+  }
+
+  function bumpDoh() {
+    dohs++;
+    dohsEl.textContent = dohs;
+  }
+
+  function spawnDonuts() {
+    const stageEl = document.getElementById('stage');
+    for (let i = 0; i < 12; i++) {
+      const d = document.createElement('div');
+      d.className = 'donut';
+      d.textContent = '🍩';
+      d.style.left = Math.random() * 90 + 'vw';
+      d.style.top = Math.random() * 90 + 'vh';
+      d.style.fontSize = (40 + Math.random() * 60) + 'px';
+      d.style.animationDuration = (2 + Math.random() * 5) + 's';
+      d.style.opacity = 0.6;
+      stageEl.appendChild(d);
+    }
+  }
+
+  function startEverything() {
+    if (started) return;
+    started = true;
+    enter.style.display = 'none';
+    stage.style.display = 'block';
+    spawnDonuts();
+    audio.volume = 1.0;
+    audio.play().catch(() => {});
+  }
+
+  enterBtn.addEventListener('click', startEverything);
+
+  // If audio gets paused for any reason, restart it
+  audio.addEventListener('pause', () => {
+    if (started) {
+      setTimeout(() => audio.play().catch(() => {}), 100);
+    }
+  });
+
+  // Re-kick audio if tab becomes visible again
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && started) {
+      audio.play().catch(() => {});
+    }
+  });
+
+  // Runaway close button
+  closeBtn.addEventListener('mouseover', moveCloseButton);
+  closeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    bumpDoh();
+    showToast(randomMessage());
+    moveCloseButton();
+  });
+
+  function moveCloseButton() {
+    const w = window.innerWidth - closeBtn.offsetWidth - 20;
+    const h = window.innerHeight - closeBtn.offsetHeight - 20;
+    const x = Math.max(10, Math.random() * w);
+    const y = Math.max(10, Math.random() * h);
+    closeBtn.style.top = y + 'px';
+    closeBtn.style.left = x + 'px';
+    closeBtn.style.right = 'auto';
+  }
+
+  // beforeunload: ask the browser to confirm leaving
+  window.addEventListener('beforeunload', (e) => {
+    if (!started) return;
+    bumpDoh();
+    e.preventDefault();
+    e.returnValue = "Are you sure you want to leave the Homer Zone? Homer will miss you.";
+    return e.returnValue;
+  });
+
+  // Friendly heckling on attempted shortcuts
+  window.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && (k === 'w' || k === 'q' || k === 'r')) {
+      bumpDoh();
+      showToast(randomMessage());
+    }
+    if (k === 'f5' || k === 'escape') {
+      bumpDoh();
+      showToast(randomMessage());
+    }
+  });
+</script>
+
+</body>
+</html>
