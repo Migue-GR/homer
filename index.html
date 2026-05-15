@@ -211,50 +211,60 @@
       const a = new Audio('homer.mp3');
       a.loop = true;
       a.preload = 'auto';
-      a.volume = 1.0;
-      // Slight detune so layers smear together instead of perfectly aligning
-      a.playbackRate = 0.9 + Math.random() * 0.25;
-      a.preservesPitch = false;
-      // Stagger via currentTime, not setTimeout — iOS requires play() to be
-      // called synchronously inside the user-gesture handler, so async delays
-      // would break the gesture context and silently reject.
-      a.dataset.offset = (i * 0.5).toString();
+      // playbackRate / preservesPitch / currentTime are deferred to AFTER play()
+      // — setting them too early causes silent failures on some Android Chrome
+      // builds. Default state for first play() = max compatibility.
       layers.push(a);
     }
   }
 
-  // Plays every layer synchronously. Must be called from within a user-gesture
-  // handler on mobile (iOS Safari) for the play() calls to be accepted.
+  function applyChaos() {
+    layers.forEach((a, i) => {
+      try {
+        a.playbackRate = 0.9 + Math.random() * 0.25;
+        a.preservesPitch = false;
+        if (a.duration && isFinite(a.duration)) {
+          a.currentTime = (i * 0.5) % a.duration;
+        }
+      } catch (_) {}
+    });
+  }
+
+  // Plays every layer synchronously inside a user gesture. Mobile (iOS Safari /
+  // Android Chrome) requires play() to be called sync from the gesture handler.
   function startAudio() {
     if (started) return;
     started = true;
     for (const a of layers) {
-      try {
-        const offset = parseFloat(a.dataset.offset) || 0;
-        if (a.duration && isFinite(a.duration)) {
-          a.currentTime = offset % a.duration;
-        }
-      } catch (_) { /* setting currentTime can throw before metadata loads */ }
       a.play().catch(() => {});
     }
+    // Apply pitch/offset variation after play has been accepted. Doing this
+    // before play() breaks audio entirely on some Android builds.
+    setTimeout(applyChaos, 150);
   }
 
-  // Show chaos immediately
   spawnDonuts();
   buildLayers();
 
-  // Try autoplay (works on desktop if browser allows). On mobile this will
-  // reject and the gesture listener below takes over.
-  Promise.all(layers.map(a => a.play()))
-    .then(() => { started = true; })
-    .catch(() => {
-      const gestureEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
-      const onGesture = () => {
-        startAudio();
-        gestureEvents.forEach(ev => window.removeEventListener(ev, onGesture, true));
-      };
-      gestureEvents.forEach(ev => window.addEventListener(ev, onGesture, true));
-    });
+  // Always wire up the gesture listener — on mobile this is the only path.
+  const gestureEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
+  const onGesture = () => {
+    startAudio();
+    gestureEvents.forEach(ev => window.removeEventListener(ev, onGesture, true));
+  };
+  gestureEvents.forEach(ev => window.addEventListener(ev, onGesture, true));
+
+  // Best-effort autoplay for desktop — if it works, great; if not, the gesture
+  // listener still handles it. We do NOT pre-fire all layers, because a failed
+  // Promise.all can leave audio elements in a bad state on some Android builds.
+  layers[0].play().then(() => {
+    if (!started) {
+      started = true;
+      for (let i = 1; i < layers.length; i++) layers[i].play().catch(() => {});
+      setTimeout(applyChaos, 150);
+    }
+    gestureEvents.forEach(ev => window.removeEventListener(ev, onGesture, true));
+  }).catch(() => {});
 
   // If any layer gets paused, restart it
   function watchLayer(a) {
