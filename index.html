@@ -215,44 +215,46 @@
       // Slight detune so layers smear together instead of perfectly aligning
       a.playbackRate = 0.9 + Math.random() * 0.25;
       a.preservesPitch = false;
+      // Stagger via currentTime, not setTimeout — iOS requires play() to be
+      // called synchronously inside the user-gesture handler, so async delays
+      // would break the gesture context and silently reject.
+      a.dataset.offset = (i * 0.5).toString();
       layers.push(a);
     }
   }
 
-  function playAll() {
-    layers.forEach((a, i) => {
-      setTimeout(() => {
-        a.play().catch(() => {});
-      }, i * 230);
-    });
-  }
-
+  // Plays every layer synchronously. Must be called from within a user-gesture
+  // handler on mobile (iOS Safari) for the play() calls to be accepted.
   function startAudio() {
     if (started) return;
     started = true;
-    buildLayers();
-    playAll();
+    for (const a of layers) {
+      try {
+        const offset = parseFloat(a.dataset.offset) || 0;
+        if (a.duration && isFinite(a.duration)) {
+          a.currentTime = offset % a.duration;
+        }
+      } catch (_) { /* setting currentTime can throw before metadata loads */ }
+      a.play().catch(() => {});
+    }
   }
 
   // Show chaos immediately
   spawnDonuts();
   buildLayers();
 
-  // Try autoplay; fall back to first user gesture
-  layers[0].play().then(() => {
-    started = true;
-    // First layer is going; kick off the rest staggered
-    layers.slice(1).forEach((a, i) => {
-      setTimeout(() => a.play().catch(() => {}), (i + 1) * 230);
+  // Try autoplay (works on desktop if browser allows). On mobile this will
+  // reject and the gesture listener below takes over.
+  Promise.all(layers.map(a => a.play()))
+    .then(() => { started = true; })
+    .catch(() => {
+      const gestureEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
+      const onGesture = () => {
+        startAudio();
+        gestureEvents.forEach(ev => window.removeEventListener(ev, onGesture, true));
+      };
+      gestureEvents.forEach(ev => window.addEventListener(ev, onGesture, true));
     });
-  }).catch(() => {
-    const gestureEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
-    const onGesture = () => {
-      startAudio();
-      gestureEvents.forEach(ev => window.removeEventListener(ev, onGesture, true));
-    };
-    gestureEvents.forEach(ev => window.addEventListener(ev, onGesture, true));
-  });
 
   // If any layer gets paused, restart it
   function watchLayer(a) {
