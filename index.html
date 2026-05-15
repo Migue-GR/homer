@@ -201,81 +201,57 @@
     }
   }
 
-  // --- Web Audio chaos chain: layer N copies of homer.mp3 through distortion + gain ---
+  // --- Simple layered audio: N parallel <audio> copies with different playback rates ---
   const LAYERS = 5;
-  let audioCtx = null;
-  let layers = [];
-
-  function makeDistortionCurve(amount) {
-    const k = amount;
-    const n = 44100;
-    const curve = new Float32Array(n);
-    const deg = Math.PI / 180;
-    for (let i = 0; i < n; i++) {
-      const x = (i * 2) / n - 1;
-      curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
-    }
-    return curve;
-  }
+  const layers = [];
 
   function buildLayers() {
     if (layers.length) return;
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-    const masterGain = audioCtx.createGain();
-    masterGain.gain.value = 1.4;
-
-    const distortion = audioCtx.createWaveShaper();
-    distortion.curve = makeDistortionCurve(60);
-    distortion.oversample = '4x';
-
-    distortion.connect(masterGain).connect(audioCtx.destination);
-
     for (let i = 0; i < LAYERS; i++) {
       const a = new Audio('homer.mp3');
       a.loop = true;
-      a.crossOrigin = 'anonymous';
       a.preload = 'auto';
+      a.volume = 1.0;
       // Slight detune so layers smear together instead of perfectly aligning
       a.playbackRate = 0.9 + Math.random() * 0.25;
       a.preservesPitch = false;
-      const src = audioCtx.createMediaElementSource(a);
-      const g = audioCtx.createGain();
-      g.gain.value = 0.7 + Math.random() * 0.5;
-      src.connect(g).connect(distortion);
       layers.push(a);
     }
   }
 
-  function startAudio() {
-    if (started) return;
-    buildLayers();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    started = true;
+  function playAll() {
     layers.forEach((a, i) => {
-      // Stagger so the layers overlap chaotically
       setTimeout(() => {
         a.play().catch(() => {});
       }, i * 230);
     });
   }
 
+  function startAudio() {
+    if (started) return;
+    started = true;
+    buildLayers();
+    playAll();
+  }
+
   // Show chaos immediately
   spawnDonuts();
+  buildLayers();
 
   // Try autoplay; fall back to first user gesture
-  buildLayers();
-  audioCtx.resume().then(() => {
-    Promise.all(layers.map(a => a.play())).then(() => { started = true; }).catch(() => {
-      const gestureEvents = ['pointerdown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'wheel'];
-      const onGesture = () => {
-        startAudio();
-        if (started) {
-          gestureEvents.forEach(ev => window.removeEventListener(ev, onGesture, true));
-        }
-      };
-      gestureEvents.forEach(ev => window.addEventListener(ev, onGesture, true));
+  layers[0].play().then(() => {
+    started = true;
+    // First layer is going; kick off the rest staggered
+    layers.slice(1).forEach((a, i) => {
+      setTimeout(() => a.play().catch(() => {}), (i + 1) * 230);
     });
+  }).catch(() => {
+    const gestureEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
+    const onGesture = () => {
+      startAudio();
+      gestureEvents.forEach(ev => window.removeEventListener(ev, onGesture, true));
+    };
+    gestureEvents.forEach(ev => window.addEventListener(ev, onGesture, true));
   });
 
   // If any layer gets paused, restart it
