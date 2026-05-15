@@ -136,9 +136,82 @@
   #toast.show {
     transform: translateX(-50%) translateY(0);
   }
+
+  #enter {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #ffd521;
+    z-index: 9999;
+    text-align: center;
+    padding: 20px;
+    cursor: pointer;
+  }
+
+  #enter.gone {
+    display: none;
+  }
+
+  #enter .donut-bg {
+    position: absolute;
+    font-size: 60px;
+    opacity: 0.25;
+    animation: spin 6s linear infinite;
+    pointer-events: none;
+  }
+
+  #enter h1 {
+    font-size: clamp(36px, 9vw, 96px);
+    margin: 0 0 30px;
+    text-shadow: 4px 4px 0 #fff, 8px 8px 0 #000;
+    animation: wobble 1.2s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  #enter button {
+    font-family: inherit;
+    font-size: clamp(22px, 5vw, 36px);
+    padding: 24px 50px;
+    background: #ff4d4d;
+    color: white;
+    border: 6px solid #000;
+    border-radius: 18px;
+    cursor: pointer;
+    box-shadow: 6px 6px 0 #000;
+    animation: pulse 0.8s ease-in-out infinite;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+  }
+
+  #enter button:active { transform: scale(0.95); }
+
+  #enter p {
+    margin-top: 24px;
+    font-size: clamp(14px, 3vw, 18px);
+    max-width: 600px;
+    opacity: 0.85;
+    pointer-events: none;
+  }
 </style>
 </head>
 <body>
+
+<div id="enter">
+  <div class="donut-bg" style="top:10%;left:10%;">🍩</div>
+  <div class="donut-bg" style="top:15%;right:12%;">🍩</div>
+  <div class="donut-bg" style="bottom:20%;left:8%;">🍩</div>
+  <div class="donut-bg" style="bottom:12%;right:14%;">🍩</div>
+  <h1>🍩 HOMER ZONE 🍩</h1>
+  <button id="enterBtn">TAP TO ENTER</button>
+  <p>By tapping you agree to never experience silence again.</p>
+</div>
 
 <div id="stage">
   <div id="counter">D'oh count: <span id="dohs">0</span></div>
@@ -246,25 +319,20 @@
   spawnDonuts();
   buildLayers();
 
-  // Always wire up the gesture listener — on mobile this is the only path.
-  const gestureEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
-  const onGesture = () => {
+  // The only reliable cross-browser, cross-mobile path: explicit synchronous
+  // click handler. play() runs inside the click event, no async hops.
+  const enterEl = document.getElementById('enter');
+  const enterBtn = document.getElementById('enterBtn');
+  function enterZone() {
     startAudio();
-    gestureEvents.forEach(ev => window.removeEventListener(ev, onGesture, true));
-  };
-  gestureEvents.forEach(ev => window.addEventListener(ev, onGesture, true));
-
-  // Best-effort autoplay for desktop — if it works, great; if not, the gesture
-  // listener still handles it. We do NOT pre-fire all layers, because a failed
-  // Promise.all can leave audio elements in a bad state on some Android builds.
-  layers[0].play().then(() => {
-    if (!started) {
-      started = true;
-      for (let i = 1; i < layers.length; i++) layers[i].play().catch(() => {});
-      setTimeout(applyChaos, 150);
-    }
-    gestureEvents.forEach(ev => window.removeEventListener(ev, onGesture, true));
-  }).catch(() => {});
+    enterEl.classList.add('gone');
+  }
+  enterBtn.addEventListener('click', enterZone);
+  // Tapping anywhere on the overlay also works (bigger hit target on mobile)
+  enterEl.addEventListener('click', (e) => {
+    if (e.target === enterBtn) return; // already handled
+    enterZone();
+  });
 
   // If any layer gets paused, restart it
   function watchLayer(a) {
